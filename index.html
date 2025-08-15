@@ -149,11 +149,13 @@
   const inspectionFrom = document.getElementById('inspection-from');
   const inspectionTo = document.getElementById('inspection-to');
 
+  // Robust CSV parser
   function parseCSV(text) {
-    const lines = text.trim().split('\n');
-    const headers = lines.shift().split(',').map(h => h.trim());
-    return lines.map(line => {
-      const data = line.split(',').map(d => d.trim());
+    const rows = text.trim().split('\n');
+    const headers = rows.shift().split(',').map(h => h.trim());
+    return rows.map(row => {
+      const regex = /(".*?"|[^",\s]+)(?=\s*,|\s*$)/g;
+      const data = row.match(regex).map(d => d.replace(/(^"|"$)/g, '').trim());
       const obj = {};
       headers.forEach((h, i) => obj[h] = data[i] || '');
       return obj;
@@ -171,6 +173,17 @@
     });
   }
 
+  function filterScaffolds() {
+    let filtered = scaffolds;
+    const term = searchInput.value.toLowerCase();
+    if (term) filtered = filtered.filter(s => s['Scaffold Tag/ID'].toLowerCase().includes(term));
+    if (siteFilter.value) filtered = filtered.filter(s => s['Site / Plant'] === siteFilter.value);
+    if (statusFilter.value) filtered = filtered.filter(s => s['Tag Status'].toUpperCase() === statusFilter.value);
+    if (inspectionFrom.value) filtered = filtered.filter(s => new Date(s['Inspection Date']) >= new Date(inspectionFrom.value));
+    if (inspectionTo.value) filtered = filtered.filter(s => new Date(s['Inspection Date']) <= new Date(inspectionTo.value));
+    return filtered;
+  }
+
   function renderScaffolds(list) {
     if (!list.length) {
       appList.innerHTML = '<p>No scaffolds found.</p>';
@@ -181,7 +194,6 @@
       const card = document.createElement('div');
       card.className = 'card';
       card.style.animationDelay = `${i * 0.05}s`;
-
       const statusClass = s['Tag Status'] ? s['Tag Status'].toUpperCase() : 'GREEN';
 
       card.innerHTML = `
@@ -200,33 +212,29 @@
     });
   }
 
-  function applyFilters() {
-    const term = searchInput.value.toLowerCase();
-    const site = siteFilter.value;
-    const status = statusFilter.value;
-    const fromDate = inspectionFrom.value;
-    const toDate = inspectionTo.value;
-
-    const filtered = scaffolds.filter(s => {
-      let matchesSearch = s['Scaffold Tag/ID']?.toLowerCase().includes(term) || term === '';
-      let matchesSite = s['Site / Plant'] === site || site === '';
-      let matchesStatus = s['Tag Status'].toUpperCase() === status || status === '';
-
-      let matchesDate = true;
-      if (fromDate) matchesDate = new Date(s['Inspection Date']) >= new Date(fromDate);
-      if (toDate) matchesDate = matchesDate && new Date(s['Inspection Date']) <= new Date(toDate);
-
-      return matchesSearch && matchesSite && matchesStatus && matchesDate;
-    });
-
-    renderScaffolds(filtered);
+  function fetchData() {
+    appList.innerHTML = '<div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>';
+    fetch(CSV_URL + '&cacheBust=' + Date.now())
+      .then(res => res.ok ? res.text() : Promise.reject('Failed to fetch CSV'))
+      .then(text => {
+        scaffolds = parseCSV(text);
+        populateSiteFilter();
+        renderScaffolds(filterScaffolds());
+      })
+      .catch(err => {
+        appList.innerHTML = '<p>Failed to load data.</p>';
+        console.error(err);
+      });
   }
 
-  searchInput.addEventListener('input', applyFilters);
-  siteFilter.addEventListener('change', applyFilters);
-  statusFilter.addEventListener('change', applyFilters);
-  inspectionFrom.addEventListener('change', applyFilters);
-  inspectionTo.addEventListener('change', applyFilters);
+  // Event listeners
+  [searchInput, siteFilter, statusFilter, inspectionFrom, inspectionTo].forEach(el => {
+    el.addEventListener('input', () => renderScaffolds(filterScaffolds()));
+  });
 
-  function fetchData() {
-    appList.innerHTML = '<div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div
+  fetchData();
+  setInterval(fetchData, 60000); // refresh every 60s
+</script>
+
+</body>
+</html>
