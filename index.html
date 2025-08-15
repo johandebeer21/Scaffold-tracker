@@ -56,7 +56,7 @@
       background: linear-gradient(90deg, #eee 25%, #ddd 50%, #eee 75%);
       background-size: 200% 100%;
       animation: shimmer 1.5s infinite;
-      height: 160px;
+      height: 140px;
       border-radius: 14px;
     }
 
@@ -112,6 +112,15 @@
 
     @keyframes fadeUpScale {0% { opacity: 0; transform: translateY(40px) scale(0.95); } 100% { opacity: 1; transform: translateY(0) scale(1); }}
 
+    .footer {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 0.95rem;
+      color: #6b7280;
+      padding: 10px;
+      border-top: 1px solid #d1d5db;
+    }
+
     @media (min-width: 768px) { #app-list { grid-template-columns: 1fr 1fr; gap: 24px; } }
   </style>
 </head>
@@ -138,123 +147,114 @@
   <div class="skeleton-card"></div>
 </div>
 
+<div class="footer">
+  ⚙️ Scaffold Management System | Created by Johan de Beer | Real-Time Cloud Updates
+</div>
+
 <script>
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRlUmodgya6dHRUbl4R8nkmV3tl4NoSlh4BUnqADQAIVgu6A3CIyfYt4dDFqfDiefdKtsgLgNntsyp2/pub?output=csv';
-let scaffolds = [];
+  const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRlUmodgya6dHRUbl4R8nkmV3tl4NoSlh4BUnqADQAIVgu6A3CIyfYt4dDFqfDiefdKtsgLgNntsyp2/pub?output=csv';
+  let scaffolds = [];
 
-const appList = document.getElementById('app-list');
-const searchInput = document.getElementById('search');
-const siteFilter = document.getElementById('site-filter');
-const statusFilter = document.getElementById('status-filter');
-const inspectionFrom = document.getElementById('inspection-from');
-const inspectionTo = document.getElementById('inspection-to');
+  const appList = document.getElementById('app-list');
+  const searchInput = document.getElementById('search');
+  const siteFilter = document.getElementById('site-filter');
+  const statusFilter = document.getElementById('status-filter');
+  const inspectionFrom = document.getElementById('inspection-from');
+  const inspectionTo = document.getElementById('inspection-to');
 
-// Proper CSV parser to handle quoted fields (like "2m x 2m x 5m")
-function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  const headers = lines.shift().split(',').map(h => h.trim());
-  const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/; // split on commas outside quotes
-  return lines.map(line => {
-    const data = line.split(regex).map(d => d.replace(/^"|"$/g,'').trim());
-    const obj = {};
-    headers.forEach((h, i) => obj[h] = data[i] || '');
-    return obj;
-  });
-}
-
-function populateSiteFilter() {
-  const sites = [...new Set(scaffolds.map(s => s['Site / Plant']).filter(Boolean))];
-  siteFilter.innerHTML = '<option value="">All Sites</option>';
-  sites.forEach(site => {
-    const opt = document.createElement('option');
-    opt.value = site;
-    opt.textContent = site;
-    siteFilter.appendChild(opt);
-  });
-}
-
-function renderScaffolds(list) {
-  if (!list.length) {
-    appList.innerHTML = '<p>No scaffolds found.</p>';
-    return;
-  }
-  appList.innerHTML = '';
-  list.forEach((s, i) => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.style.animationDelay = `${i * 0.05}s`;
-
-    const statusClass = s['Tag Status'] ? s['Tag Status'].toUpperCase() : 'GREEN';
-
-    card.innerHTML = `
-      <h3 class="task-title">Tag ID: ${s['Scaffold Tag/ID'] || '-'}</h3>
-      <div class="info-row"><span>Site:</span> <span>${s['Site / Plant'] || '-'}</span></div>
-      <div class="info-row"><span>Location:</span> <span>${s['Location'] || '-'}</span></div>
-      <div class="info-row"><span>Size:</span> <span>${s['Size'] || '-'}</span></div>
-      <div class="info-row"><span>Erection Date:</span> <span>${s['Erection Date'] || '-'}</span></div>
-      <div class="info-row"><span>Modification Date:</span> <span>${s['Modification Date'] || '-'}</span></div>
-      <div class="info-row"><span>Inspection Date:</span> <span>${s['Inspection Date'] || '-'}</span></div>
-      <div class="info-row"><span>Dismantle Date:</span> <span>${s['Dismantle Date'] || '-'}</span></div>
-      <div class="info-row"><span>Status:</span> <span class="status ${statusClass}">${s['Tag Status'] || '-'}</span></div>
-      <div class="info-row"><span>Inspected By:</span> <span>${s['Inspected By'] || '-'}</span></div>
-      <div class="info-row"><span>Notes:</span> <span>${s['Notes / Remarks'] || '-'}</span></div>
-    `;
-    appList.appendChild(card);
-  });
-}
-
-function filterScaffolds() {
-  let filtered = [...scaffolds];
-  const searchTerm = searchInput.value.toLowerCase();
-  const siteTerm = siteFilter.value;
-  const statusTerm = statusFilter.value;
-  const fromDate = inspectionFrom.value;
-  const toDate = inspectionTo.value;
-
-  if (searchTerm) {
-    filtered = filtered.filter(s => s['Scaffold Tag/ID']?.toLowerCase().includes(searchTerm));
-  }
-  if (siteTerm) {
-    filtered = filtered.filter(s => s['Site / Plant'] === siteTerm);
-  }
-  if (statusTerm) {
-    filtered = filtered.filter(s => s['Tag Status']?.toUpperCase() === statusTerm);
-  }
-  if (fromDate) {
-    filtered = filtered.filter(s => s['Inspection Date'] && s['Inspection Date'] >= fromDate);
-  }
-  if (toDate) {
-    filtered = filtered.filter(s => s['Inspection Date'] && s['Inspection Date'] <= toDate);
-  }
-
-  renderScaffolds(filtered);
-}
-
-function fetchData() {
-  appList.innerHTML = '<div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>';
-  fetch(CSV_URL + '&cacheBust=' + Date.now())
-    .then(res => res.ok ? res.text() : Promise.reject('Failed to fetch CSV'))
-    .then(text => {
-      scaffolds = parseCSV(text);
-      populateSiteFilter();
-      filterScaffolds();
-    })
-    .catch(err => {
-      console.error(err);
-      appList.innerHTML = '<p>Failed to load data.</p>';
+  function parseCSV(text) {
+    const lines = text.trim().split('\n');
+    const headers = lines.shift().split(',').map(h => h.trim());
+    return lines.map(line => {
+      const data = line.split(',').map(d => d.trim());
+      const obj = {};
+      headers.forEach((h, i) => obj[h] = data[i] || '');
+      return obj;
     });
-}
+  }
 
-// Event listeners
-searchInput.addEventListener('input', filterScaffolds);
-siteFilter.addEventListener('change', filterScaffolds);
-statusFilter.addEventListener('change', filterScaffolds);
-inspectionFrom.addEventListener('change', filterScaffolds);
-inspectionTo.addEventListener('change', filterScaffolds);
+  function populateSiteFilter() {
+    const sites = [...new Set(scaffolds.map(s => s['Site / Plant']).filter(Boolean))];
+    siteFilter.innerHTML = '<option value="">All Sites</option>';
+    sites.forEach(site => {
+      const opt = document.createElement('option');
+      opt.value = site;
+      opt.textContent = site;
+      siteFilter.appendChild(opt);
+    });
+  }
 
-// Initial fetch
-fetchData();
-setInterval(fetchData, 60000);
+  function renderScaffolds(list) {
+    if (!list.length) {
+      appList.innerHTML = '<p>No scaffolds found.</p>';
+      return;
+    }
+    appList.innerHTML = '';
+    list.forEach((s, i) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.animationDelay = `${i * 0.05}s`;
+      const statusClass = s['Tag Status'] ? s['Tag Status'].toUpperCase() : 'GREEN';
+
+      card.innerHTML = `
+        <h3 class="task-title">Tag ID: ${s['Scaffold Tag/ID'] || '-'}</h3>
+        <div class="info-row"><span>Site:</span> <span>${s['Site / Plant'] || '-'}</span></div>
+        <div class="info-row"><span>Location:</span> <span>${s['Location'] || '-'}</span></div>
+        <div class="info-row"><span>Size:</span> <span>${s['Size'] || '-'}</span></div>
+        <div class="info-row"><span>Erection Date:</span> <span>${s['Erection Date'] || '-'}</span></div>
+        <div class="info-row"><span>Modification Date:</span> <span>${s['Modification Date'] || '-'}</span></div>
+        <div class="info-row"><span>Inspection Date:</span> <span>${s['Inspection Date'] || '-'}</span></div>
+        <div class="info-row"><span>Dismantle Date:</span> <span>${s['Dismantle Date'] || '-'}</span></div>
+        <div class="info-row"><span>Status:</span> <span class="status ${statusClass}">${s['Tag Status'] || '-'}</span></div>
+        <div class="info-row"><span>Inspected By:</span> <span>${s['Inspected By'] || '-'}</span></div>
+        <div class="info-row"><span>Notes:</span> <span>${s['Notes / Remarks'] || '-'}</span></div>
+      `;
+      appList.appendChild(card);
+    });
+  }
+
+  function fetchData() {
+    appList.innerHTML = '<div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>';
+    fetch(CSV_URL + '&cacheBust=' + Date.now())
+      .then(res => res.ok ? res.text() : Promise.reject('Failed to fetch'))
+      .then(text => {
+        scaffolds = parseCSV(text);
+        populateSiteFilter();
+        renderScaffolds(scaffolds);
+      })
+      .catch(err => {
+        appList.innerHTML = '<p>Failed to load data.</p>';
+        console.error(err);
+      });
+  }
+
+  function filterData() {
+    const searchTerm = searchInput.value.toLowerCase();
+    const site = siteFilter.value;
+    const status = statusFilter.value;
+    const fromDate = inspectionFrom.value;
+    const toDate = inspectionTo.value;
+
+    const filtered = scaffolds.filter(s => {
+      let matches = true;
+      if (searchTerm) matches = s['Scaffold Tag/ID'].toLowerCase().includes(searchTerm);
+      if (matches && site) matches = s['Site / Plant'] === site;
+      if (matches && status) matches = s['Tag Status'].toUpperCase() === status;
+      if (matches && fromDate) matches = s['Inspection Date'] >= fromDate;
+      if (matches && toDate) matches = s['Inspection Date'] <= toDate;
+      return matches;
+    });
+    renderScaffolds(filtered);
+  }
+
+  searchInput.addEventListener('input', filterData);
+  siteFilter.addEventListener('change', filterData);
+  statusFilter.addEventListener('change', filterData);
+  inspectionFrom.addEventListener('change', filterData);
+  inspectionTo.addEventListener('change', filterData);
+
+  fetchData();
+  setInterval(fetchData, 60000);
 </script>
 
 </body>
