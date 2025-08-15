@@ -1,278 +1,172 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Scaffold Tracker</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scaffold Tracker</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+body { font-family:'Inter',sans-serif; background: linear-gradient(to right,#f3f4f6,#e0e7ff); margin:0;padding:20px;color:#1f2937; }
+h1 { font-weight:700; font-size:2rem; text-align:center; color:#111827; margin-bottom:0.5rem; }
 
-    body {
-      font-family: 'Inter', sans-serif;
-      background: linear-gradient(to right, #f3f4f6, #e0e7ff);
-      margin: 0; padding: 20px;
-      color: #1f2937;
-    }
+.filter-container { max-width:700px; margin:0 auto 20px auto; display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+.filter-container select, .filter-container input { padding:10px; border-radius:12px; border:2px solid #e5e7eb; font-size:1rem; outline:none; }
+.filter-container select:focus, .filter-container input:focus { border-color:#3b82f6; box-shadow:0 0 12px #3b82f6; }
 
-    h1 {
-      font-weight: 700;
-      font-size: 2rem;
-      margin-bottom: 0.5rem;
-      text-align: center;
-      color: #111827;
-    }
+#app-list { max-width:700px; margin:0 auto; display:grid; grid-template-columns:1fr; gap:18px; }
+.skeleton-card { background: linear-gradient(90deg,#eee 25%,#ddd 50%,#eee 75%); background-size:200% 100%; animation: shimmer 1.5s infinite; height:140px; border-radius:14px; }
+@keyframes shimmer {0% {background-position:200% 0;}100%{background-position:-200% 0;}}
 
-    .filter-container {
-      max-width: 700px;
-      margin: 0 auto 20px auto;
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
+.card { background:white; border-radius:14px; padding:20px 25px; box-shadow:0 10px 30px rgba(0,0,0,0.08); position:relative; overflow:hidden; transform:translateY(40px) scale(0.95); opacity:0; animation: fadeUpScale 0.5s forwards; transition: box-shadow 0.3s ease, transform 0.3s ease; }
+.card:hover { box-shadow:0 24px 48px rgba(59,130,246,0.3); transform:translateY(-4px) scale(1.02); }
 
-    .filter-container select, .filter-container input {
-      padding: 10px;
-      border-radius: 12px;
-      border: 2px solid #e5e7eb;
-      font-size: 1rem;
-      outline: none;
-    }
+.task-title { font-size:1.25rem; font-weight:700; margin-bottom:8px; color:#111827; }
+.info-row { font-size:0.9rem; margin-bottom:6px; color:#4b5563; display:flex; justify-content:space-between; }
+.status { padding:6px 14px; border-radius:9999px; font-weight:700; font-size:0.85rem; color:white; text-transform:uppercase; user-select:none; box-shadow:0 0 10px rgba(0,0,0,0.15); }
 
-    .filter-container select:focus, .filter-container input:focus {
-      border-color: #3b82f6;
-      box-shadow: 0 0 12px #3b82f6;
-    }
+.GREEN { background:#10b981; }
+.ORANGE { background:#fbbf24; }
+.RED { background:#ef4444; }
 
-    #app-list {
-      max-width: 700px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 18px;
-    }
+.reminder { font-weight:bold; color:#b91c1c; }
 
-    .skeleton-card {
-      background: linear-gradient(90deg, #eee 25%, #ddd 50%, #eee 75%);
-      background-size: 200% 100%;
-      animation: shimmer 1.5s infinite;
-      height: 140px;
-      border-radius: 14px;
-    }
-
-    @keyframes shimmer {0% {background-position: 200% 0;} 100% {background-position: -200% 0;}}
-
-    .card {
-      background: white;
-      border-radius: 14px;
-      padding: 20px 25px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-      position: relative;
-      overflow: hidden;
-      transform: translateY(40px) scale(0.95);
-      opacity: 0;
-      animation: fadeUpScale 0.5s forwards;
-      transition: box-shadow 0.3s ease, transform 0.3s ease;
-    }
-
-    .card:hover {
-      box-shadow: 0 24px 48px rgba(59, 130, 246, 0.3);
-      transform: translateY(-4px) scale(1.02);
-    }
-
-    .task-title {
-      font-size: 1.25rem;
-      font-weight: 700;
-      margin-bottom: 8px;
-      color: #111827;
-    }
-
-    .info-row {
-      font-size: 0.9rem;
-      margin-bottom: 6px;
-      color: #4b5563;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .status {
-      padding: 6px 14px;
-      border-radius: 9999px;
-      font-weight: 700;
-      font-size: 0.85rem;
-      color: white;
-      text-transform: uppercase;
-      user-select: none;
-      box-shadow: 0 0 10px rgba(0,0,0,0.15);
-    }
-
-    .GREEN { background: #10b981; }
-    .ORANGE { background: #fbbf24; }
-    .RED { background: #ef4444; }
-
-    .reminder { font-weight: bold; color: #b91c1c; }
-
-    @keyframes fadeUpScale {0% { opacity: 0; transform: translateY(40px) scale(0.95); } 100% { opacity: 1; transform: translateY(0) scale(1); }}
-
-    @media (min-width: 768px) { #app-list { grid-template-columns: 1fr 1fr; gap: 24px; } }
-
-    .footer {
-      text-align: center;
-      margin-top: 40px;
-      font-size: 0.95rem;
-      color: #6b7280;
-    }
-  </style>
+@keyframes fadeUpScale {0% {opacity:0; transform:translateY(40px) scale(0.95);} 100% {opacity:1; transform:translateY(0) scale(1);}}
+@media(min-width:768px){#app-list{grid-template-columns:1fr 1fr; gap:24px;}}
+.footer{text-align:center;margin-top:40px;font-size:0.95rem;color:#6b7280;}
+</style>
 </head>
 <body>
 
 <h1>Scaffold Tracker</h1>
 
 <div class="filter-container">
-  <input type="text" id="search" placeholder="Search by Tag ID..." />
-  <select id="site-filter"><option value="">All Sites</option></select>
-  <select id="status-filter">
-    <option value="">All Status</option>
-    <option value="GREEN">GREEN</option>
-    <option value="ORANGE">ORANGE</option>
-    <option value="RED">RED</option>
-  </select>
-  <input type="date" id="inspection-from" placeholder="From Date" />
-  <input type="date" id="inspection-to" placeholder="To Date" />
+<input type="text" id="search" placeholder="Search by Tag ID..." />
+<select id="site-filter"><option value="">All Sites</option></select>
+<select id="status-filter">
+<option value="">All Status</option>
+<option value="GREEN">GREEN</option>
+<option value="ORANGE">ORANGE</option>
+<option value="RED">RED</option>
+</select>
+<input type="date" id="inspection-from" placeholder="From Date" />
+<input type="date" id="inspection-to" placeholder="To Date" />
 </div>
 
 <div id="app-list">
-  <div class="skeleton-card"></div>
-  <div class="skeleton-card"></div>
-  <div class="skeleton-card"></div>
+<div class="skeleton-card"></div>
+<div class="skeleton-card"></div>
+<div class="skeleton-card"></div>
 </div>
 
-<div class="footer">
-  ⚙️ Scaffold Management System | Created by Johan de Beer | Real-Time Cloud Updates
-</div>
+<div class="footer">⚙️ Scaffold Management System | Created by Johan de Beer | Real-Time Cloud Updates</div>
 
 <script>
-  const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRlUmodgya6dHRUbl4R8nkmV3tl4NoSlh4BUnqADQAIVgu6A3CIyfYt4dDFqfDiefdKtsgLgNntsyp2/pub?output=csv';
-  let scaffolds = [];
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRlUmodgya6dHRUbl4R8nkmV3tl4NoSlh4BUnqADQAIVgu6A3CIyfYt4dDFqfDiefdKtsgLgNntsyp2/pub?output=csv';
+let scaffolds = [];
 
-  const appList = document.getElementById('app-list');
-  const searchInput = document.getElementById('search');
-  const siteFilter = document.getElementById('site-filter');
-  const statusFilter = document.getElementById('status-filter');
-  const inspectionFrom = document.getElementById('inspection-from');
-  const inspectionTo = document.getElementById('inspection-to');
+const appList = document.getElementById('app-list');
+const searchInput = document.getElementById('search');
+const siteFilter = document.getElementById('site-filter');
+const statusFilter = document.getElementById('status-filter');
+const inspectionFrom = document.getElementById('inspection-from');
+const inspectionTo = document.getElementById('inspection-to');
 
-  function parseCSV(text) {
-    const lines = text.trim().split('\n');
-    const headers = lines.shift().split(',').map(h => h.trim());
-    return lines.map(line => {
-      const data = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-      const obj = {};
-      headers.forEach((h, i) => obj[h] = data[i] ? data[i].replace(/"/g,'') : '');
-      return obj;
-    });
-  }
+// Robust CSV parser
+function parseCSV(text){
+  const lines = text.trim().split('\n');
+  const headers = lines.shift().split(',').map(h=>h.trim());
+  return lines.map(line=>{
+    const regex = /(".*?"|[^",]+)(?=,|$)/g;
+    const data = line.match(regex)?.map(d=>d.replace(/"/g,'').trim()) || [];
+    const obj = {};
+    headers.forEach((h,i)=>obj[h]=data[i]||'');
+    return obj;
+  });
+}
 
-  function populateSiteFilter() {
-    const sites = [...new Set(scaffolds.map(s => s['Site / Plant']).filter(Boolean))];
-    siteFilter.innerHTML = '<option value="">All Sites</option>';
-    sites.forEach(site => {
-      const opt = document.createElement('option');
-      opt.value = site;
-      opt.textContent = site;
-      siteFilter.appendChild(opt);
-    });
-  }
+function populateSiteFilter(){
+  const sites=[...new Set(scaffolds.map(s=>s['Site / Plant']).filter(Boolean))];
+  siteFilter.innerHTML='<option value="">All Sites</option>';
+  sites.forEach(site=>{const opt=document.createElement('option'); opt.value=site; opt.textContent=site; siteFilter.appendChild(opt);});
+}
 
-  function renderScaffolds(list) {
-    if (!list.length) {
-      appList.innerHTML = '<p>No scaffolds found.</p>';
-      return;
+function renderScaffolds(list){
+  if(!list.length){appList.innerHTML='<p>No scaffolds found.</p>'; return;}
+  appList.innerHTML='';
+  const today = new Date();
+  list.forEach((s,i)=>{
+    const card = document.createElement('div');
+    card.className='card';
+    card.style.animationDelay=`${i*0.05}s`;
+    const statusClass = s['Tag Status']?.toUpperCase() || 'GREEN';
+
+    // Reminder logic
+    let reminderText='';
+    if(s['Inspection Date']){
+      const inspectionDate=new Date(s['Inspection Date']);
+      const diffDays=Math.ceil((inspectionDate-today)/(1000*60*60*24));
+      if(statusClass==='GREEN' && diffDays<=5 && diffDays>=0){ reminderText=`⚠️ Inspection due in ${diffDays} days`; }
+      else if(statusClass==='ORANGE' && diffDays>=0){ reminderText=`🔔 Inspection required!`; }
+      else if(statusClass==='RED' && diffDays<0){ reminderText=`❌ Inspection overdue!`; }
     }
-    appList.innerHTML = '';
-    const today = new Date();
 
-    list.forEach((s, i) => {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.style.animationDelay = `${i * 0.05}s`;
+    card.innerHTML=`
+    <h3 class="task-title">Tag ID: ${s['Scaffold Tag/ID']||'-'}</h3>
+    <div class="info-row"><span>Site:</span><span>${s['Site / Plant']||'-'}</span></div>
+    <div class="info-row"><span>Location:</span><span>${s['Location']||'-'}</span></div>
+    <div class="info-row"><span>Size:</span><span>${s['Size']||'-'}</span></div>
+    <div class="info-row"><span>Erection Date:</span><span>${s['Erection Date']||'-'}</span></div>
+    <div class="info-row"><span>Modification Date:</span><span>${s['Modification Date']||'-'}</span></div>
+    <div class="info-row"><span>Inspection Date:</span><span>${s['Inspection Date']||'-'}</span></div>
+    <div class="info-row"><span>Dismantle Date:</span><span>${s['Dismantle Date']||'-'}</span></div>
+    <div class="info-row"><span>Status:</span><span class="status ${statusClass}">${s['Tag Status']||'-'}</span></div>
+    ${reminderText?`<div class="info-row"><span>Reminder:</span><span class="reminder">${reminderText}</span></div>`:''}
+    <div class="info-row"><span>Inspected By:</span><span>${s['Inspected By']||'-'}</span></div>
+    <div class="info-row"><span>Notes:</span><span>${s['Notes / Remarks']||'-'}</span></div>
+    `;
+    appList.appendChild(card);
+  });
+}
 
-      const statusClass = s['Tag Status'] ? s['Tag Status'].toUpperCase() : 'GREEN';
+function fetchData(){
+  appList.innerHTML='<div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>';
+  fetch(CSV_URL+'&cacheBust='+Date.now())
+  .then(res=>res.ok?res.text():Promise.reject('Failed to fetch'))
+  .then(text=>{
+    scaffolds=parseCSV(text);
+    populateSiteFilter();
+    renderScaffolds(scaffolds);
+  })
+  .catch(err=>{appList.innerHTML='<p>Failed to load data.</p>'; console.error(err);});
+}
 
-      let reminderText = '';
-      if (s['Inspection Date']) {
-        const inspectionDate = new Date(s['Inspection Date']);
-        const diffTime = inspectionDate - today;
-        const diffDays = Math.ceil(diffTime / (1000*60*60*24));
-        if (statusClass === 'GREEN' && diffDays <= 5) {
-          reminderText = `⚠️ Inspection due in ${diffDays} days`;
-        } else if (statusClass === 'ORANGE') {
-          reminderText = `🔔 Inspection required!`;
-        } else if (statusClass === 'RED' && diffDays < 0) {
-          reminderText = `❌ Inspection overdue!`;
-        }
-      }
+function filterScaffolds(){
+  const searchTerm=searchInput.value.toLowerCase();
+  const siteTerm=siteFilter.value;
+  const statusTerm=statusFilter.value;
+  const fromDate=inspectionFrom.value?new Date(inspectionFrom.value):null;
+  const toDate=inspectionTo.value?new Date(inspectionTo.value):null;
 
-      card.innerHTML = `
-        <h3 class="task-title">Tag ID: ${s['Scaffold Tag/ID'] || '-'}</h3>
-        <div class="info-row"><span>Site:</span> <span>${s['Site / Plant'] || '-'}</span></div>
-        <div class="info-row"><span>Location:</span> <span>${s['Location'] || '-'}</span></div>
-        <div class="info-row"><span>Size:</span> <span>${s['Size'] || '-'}</span></div>
-        <div class="info-row"><span>Erection Date:</span> <span>${s['Erection Date'] || '-'}</span></div>
-        <div class="info-row"><span>Modification Date:</span> <span>${s['Modification Date'] || '-'}</span></div>
-        <div class="info-row"><span>Inspection Date:</span> <span>${s['Inspection Date'] || '-'}</span></div>
-        <div class="info-row"><span>Dismantle Date:</span> <span>${s['Dismantle Date'] || '-'}</span></div>
-        <div class="info-row"><span>Status:</span> <span class="status ${statusClass}">${s['Tag Status'] || '-'}</span></div>
-        ${reminderText ? `<div class="info-row"><span>Reminder:</span> <span class="reminder">${reminderText}</span></div>` : ''}
-        <div class="info-row"><span>Inspected By:</span> <span>${s['Inspected By'] || '-'}</span></div>
-        <div class="info-row"><span>Notes:</span> <span>${s['Notes / Remarks'] || '-'}</span></div>
-      `;
-      appList.appendChild(card);
-    });
-  }
+  const filtered=scaffolds.filter(s=>{
+    const matchesSearch=s['Scaffold Tag/ID']?.toLowerCase().includes(searchTerm)||false;
+    const matchesSite=siteTerm?s['Site / Plant']===siteTerm:true;
+    const matchesStatus=statusTerm?s['Tag Status']===statusTerm:true;
+    const inspectionDate=s['Inspection Date']?new Date(s['Inspection Date']):null;
+    const matchesFrom=fromDate&&inspectionDate?inspectionDate>=fromDate:true;
+    const matchesTo=toDate&&inspectionDate?inspectionDate<=toDate:true;
+    return matchesSearch&&matchesSite&&matchesStatus&&matchesFrom&&matchesTo;
+  });
+  renderScaffolds(filtered);
+}
 
-  function fetchData() {
-    appList.innerHTML = '<div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>';
-    fetch(CSV_URL + '&cacheBust=' + Date.now())
-      .then(res => res.ok ? res.text() : Promise.reject('Failed to fetch'))
-      .then(text => {
-        scaffolds = parseCSV(text);
-        populateSiteFilter();
-        renderScaffolds(scaffolds);
-      })
-      .catch(err => {
-        appList.innerHTML = '<p>Failed to load data.</p>';
-        console.error(err);
-      });
-  }
+searchInput.addEventListener('input',filterScaffolds);
+siteFilter.addEventListener('change',filterScaffolds);
+statusFilter.addEventListener('change',filterScaffolds);
+inspectionFrom.addEventListener('change',filterScaffolds);
+inspectionTo.addEventListener('change',filterScaffolds);
 
-  function filterScaffolds() {
-    const searchTerm = searchInput.value.toLowerCase();
-    const siteTerm = siteFilter.value;
-    const statusTerm = statusFilter.value;
-    const fromDate = inspectionFrom.value ? new Date(inspectionFrom.value) : null;
-    const toDate = inspectionTo.value ? new Date(inspectionTo.value) : null;
-
-    const filtered = scaffolds.filter(s => {
-      const matchesSearch = s['Scaffold Tag/ID']?.toLowerCase().includes(searchTerm) || false;
-      const matchesSite = siteTerm ? s['Site / Plant'] === siteTerm : true;
-      const matchesStatus = statusTerm ? s['Tag Status'] === statusTerm : true;
-      const inspectionDate = s['Inspection Date'] ? new Date(s['Inspection Date']) : null;
-      const matchesFrom = fromDate && inspectionDate ? inspectionDate >= fromDate : true;
-      const matchesTo = toDate && inspectionDate ? inspectionDate <= toDate : true;
-      return matchesSearch && matchesSite && matchesStatus && matchesFrom && matchesTo;
-    });
-    renderScaffolds(filtered);
-  }
-
-  searchInput.addEventListener('input', filterScaffolds);
-  siteFilter.addEventListener('change', filterScaffolds);
-  statusFilter.addEventListener('change', filterScaffolds);
-  inspectionFrom.addEventListener('change', filterScaffolds);
-  inspectionTo.addEventListener('change', filterScaffolds);
-
-  fetchData();
-  setInterval(fetchData, 60000);
+fetchData();
+setInterval(fetchData,60000);
 </script>
 
 </body>
