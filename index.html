@@ -56,7 +56,7 @@
       background: linear-gradient(90deg, #eee 25%, #ddd 50%, #eee 75%);
       background-size: 200% 100%;
       animation: shimmer 1.5s infinite;
-      height: 140px;
+      height: 160px;
       border-radius: 14px;
     }
 
@@ -106,17 +106,40 @@
       box-shadow: 0 0 10px rgba(0,0,0,0.15);
     }
 
-    .GREEN { background: #10b981; }
-    .ORANGE { background: #fbbf24; }
-    .RED { background: #ef4444; }
+    .GREEN { 
+      background: linear-gradient(270deg, #10b981, #14d79d, #10b981);
+      background-size: 600% 600%;
+      animation: pulseGradient 3s ease infinite;
+      box-shadow: 0 0 12px #10b981cc;
+    }
+    .ORANGE { 
+      background: linear-gradient(270deg, #fbbf24, #fde68a, #fbbf24);
+      background-size: 600% 600%;
+      animation: pulseGradient 3s ease infinite;
+      box-shadow: 0 0 12px #fbbf24cc;
+    }
+    .RED { 
+      background: linear-gradient(270deg, #ef4444, #f87171, #ef4444);
+      background-size: 600% 600%;
+      animation: pulseGradient 3s ease infinite;
+      box-shadow: 0 0 12px #ef4444cc;
+    }
 
     .reminder {
-      font-weight: 600;
-      margin-top: 8px;
       color: #b91c1c;
+      font-weight: 600;
+      margin-top: 5px;
+    }
+
+    @keyframes pulseGradient {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
     }
 
     @keyframes fadeUpScale {0% { opacity: 0; transform: translateY(40px) scale(0.95); } 100% { opacity: 1; transform: translateY(0) scale(1); }}
+
+    @media (min-width: 768px) { #app-list { grid-template-columns: 1fr 1fr; gap: 24px; } }
 
     .footer {
       text-align: center;
@@ -124,8 +147,6 @@
       font-size: 0.95rem;
       color: #6b7280;
     }
-
-    @media (min-width: 768px) { #app-list { grid-template-columns: 1fr 1fr; gap: 24px; } }
   </style>
 </head>
 <body>
@@ -141,8 +162,6 @@
     <option value="ORANGE">ORANGE</option>
     <option value="RED">RED</option>
   </select>
-  <input type="date" id="inspection-from" placeholder="From Date" />
-  <input type="date" id="inspection-to" placeholder="To Date" />
 </div>
 
 <div id="app-list">
@@ -151,138 +170,134 @@
   <div class="skeleton-card"></div>
 </div>
 
-<div class="footer">
-  ⚙️ Scaffold Management System | Created by Johan de Beer | Real-Time Cloud Updates
-</div>
+<div class="footer">⚙️ Scaffold Management System | Created by Johan de Beer | Real-Time Cloud Updates</div>
 
 <script>
-  const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRlUmodgya6dHRUbl4R8nkmV3tl4NoSlh4BUnqADQAIVgu6A3CIyfYt4dDFqfDiefdKtsgLgNntsyp2/pub?output=csv';
-  let scaffolds = [];
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRlUmodgya6dHRUbl4R8nkmV3tl4NoSlh4BUnqADQAIVgu6A3CIyfYt4dDFqfDiefdKtsgLgNntsyp2/pub?output=csv';
+let scaffolds = [];
 
-  const appList = document.getElementById('app-list');
-  const searchInput = document.getElementById('search');
-  const siteFilter = document.getElementById('site-filter');
-  const statusFilter = document.getElementById('status-filter');
-  const inspectionFrom = document.getElementById('inspection-from');
-  const inspectionTo = document.getElementById('inspection-to');
+const appList = document.getElementById('app-list');
+const searchInput = document.getElementById('search');
+const siteFilter = document.getElementById('site-filter');
+const statusFilter = document.getElementById('status-filter');
 
-  function parseCSV(text) {
-    const lines = text.trim().split('\n');
-    const headers = lines.shift().split(',').map(h => h.trim());
-    return lines.map(line => {
-      const data = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g); // support commas inside quotes
-      const obj = {};
-      headers.forEach((h, i) => obj[h] = data[i]?.replace(/"/g,'') || '');
-      return obj;
-    });
-  }
-
-  function populateSiteFilter() {
-    const sites = [...new Set(scaffolds.map(s => s['Site / Plant']).filter(Boolean))];
-    siteFilter.innerHTML = '<option value="">All Sites</option>';
-    sites.forEach(site => {
-      const opt = document.createElement('option');
-      opt.value = site;
-      opt.textContent = site;
-      siteFilter.appendChild(opt);
-    });
-  }
-
-  function renderScaffolds(list) {
-    if (!list.length) {
-      appList.innerHTML = '<p>No scaffolds found.</p>';
-      return;
+// Robust CSV parser
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines.shift().split(',').map(h => h.trim());
+  return lines.map(line => {
+    const row = [];
+    let current = '', inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"' && line[i-1] !== '\\') inQuotes = !inQuotes;
+      else if (char === ',' && !inQuotes) {
+        row.push(current.trim().replace(/^"|"$/g,''));
+        current = '';
+      } else current += char;
     }
-    appList.innerHTML = '';
-    list.forEach((s, i) => {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.style.animationDelay = `${i * 0.05}s`;
+    row.push(current.trim().replace(/^"|"$/g,''));
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = row[i] || '');
+    return obj;
+  });
+}
 
-      const statusClass = s['Tag Status'] ? s['Tag Status'].toUpperCase() : 'GREEN';
+function populateSiteFilter() {
+  const sites = [...new Set(scaffolds.map(s => s['Site / Plant']).filter(Boolean))];
+  siteFilter.innerHTML = '<option value="">All Sites</option>';
+  sites.forEach(site => {
+    const opt = document.createElement('option');
+    opt.value = site;
+    opt.textContent = site;
+    siteFilter.appendChild(opt);
+  });
+}
 
-      // Reminder logic
-      let reminderText = '';
-      if (s['Inspection Date']) {
-        const inspectionDate = new Date(s['Inspection Date']);
-        const today = new Date();
-        const diffDays = Math.ceil((inspectionDate - today)/(1000*60*60*24));
+function getReminder(s) {
+  const today = new Date();
+  const insp = new Date(s['Inspection Date']);
+  const diffDays = Math.ceil((insp - today)/ (1000*60*60*24));
+  if (s['Tag Status'].toUpperCase() === 'GREEN' && diffDays <= 5) {
+    return '⚠️ Inspection approaching, redo within 5 days';
+  }
+  if (s['Tag Status'].toUpperCase() === 'ORANGE' && diffDays <= 1) {
+    return '⚠️ Daily inspection required';
+  }
+  if (diffDays < 0) {
+    return '❌ Inspection expired!';
+  }
+  return '';
+}
 
-        if(statusClass === 'GREEN'){
-          if(diffDays <=5 && diffDays >=0){
-            reminderText = `⚠️ Inspection due in ${diffDays} days`;
-          } else if(diffDays < 0){
-            reminderText = `❌ Inspection expired!`;
-          }
-        } else if(statusClass === 'ORANGE'){
-          if(diffDays >= 0){
-            reminderText = `🔔 Daily inspection required!`;
-          } else {
-            reminderText = `❌ Inspection overdue!`;
-          }
-        }
-      }
+function renderScaffolds(list) {
+  if (!list.length) {
+    appList.innerHTML = '<p>No scaffolds found.</p>';
+    return;
+  }
+  appList.innerHTML = '';
+  list.forEach((s, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.animationDelay = `${i * 0.05}s`;
 
-      card.innerHTML = `
-        <h3 class="task-title">Tag ID: ${s['Scaffold Tag/ID'] || '-'}</h3>
-        <div class="info-row"><span>Site:</span> <span>${s['Site / Plant'] || '-'}</span></div>
-        <div class="info-row"><span>Location:</span> <span>${s['Location'] || '-'}</span></div>
-        <div class="info-row"><span>Size:</span> <span>${s['Size'] || '-'}</span></div>
-        <div class="info-row"><span>Erection Date:</span> <span>${s['Erection Date'] || '-'}</span></div>
-        <div class="info-row"><span>Modification Date:</span> <span>${s['Modification Date'] || '-'}</span></div>
-        <div class="info-row"><span>Inspection Date:</span> <span>${s['Inspection Date'] || '-'}</span></div>
-        <div class="info-row"><span>Dismantle Date:</span> <span>${s['Dismantle Date'] || '-'}</span></div>
-        <div class="info-row"><span>Status:</span> <span class="status ${statusClass}">${s['Tag Status'] || '-'}</span></div>
-        <div class="info-row"><span>Inspected By:</span> <span>${s['Inspected By'] || '-'}</span></div>
-        <div class="info-row"><span>Notes:</span> <span>${s['Notes / Remarks'] || '-'}</span></div>
-        ${reminderText ? `<div class="reminder">${reminderText}</div>` : ''}
-      `;
-      appList.appendChild(card);
+    const statusClass = s['Tag Status'] ? s['Tag Status'].toUpperCase() : 'GREEN';
+    const reminderText = getReminder(s);
+
+    card.innerHTML = `
+      <h3 class="task-title">Tag ID: ${s['Scaffold Tag/ID'] || '-'}</h3>
+      <div class="info-row"><span>Site:</span> <span>${s['Site / Plant'] || '-'}</span></div>
+      <div class="info-row"><span>Location:</span> <span>${s['Location'] || '-'}</span></div>
+      <div class="info-row"><span>Size:</span> <span>${s['Size'] || '-'}</span></div>
+      <div class="info-row"><span>Erection Date:</span> <span>${s['Erection Date'] || '-'}</span></div>
+      <div class="info-row"><span>Modification Date:</span> <span>${s['Modification Date'] || '-'}</span></div>
+      <div class="info-row"><span>Inspection Date:</span> <span>${s['Inspection Date'] || '-'}</span></div>
+      <div class="info-row"><span>Dismantle Date:</span> <span>${s['Dismantle Date'] || '-'}</span></div>
+      <div class="info-row"><span>Status:</span> <span class="status ${statusClass}">${s['Tag Status'] || '-'}</span></div>
+      <div class="info-row"><span>Inspected By:</span> <span>${s['Inspected By'] || '-'}</span></div>
+      <div class="info-row"><span>Notes:</span> <span>${s['Notes / Remarks'] || '-'}</span></div>
+      ${reminderText ? `<div class="reminder">${reminderText}</div>` : ''}
+    `;
+    appList.appendChild(card);
+  });
+}
+
+function fetchData() {
+  appList.innerHTML = '<div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>';
+  fetch(CSV_URL + '&cacheBust=' + Date.now())
+    .then(res => res.ok ? res.text() : Promise.reject('Failed to fetch'))
+    .then(text => {
+      scaffolds = parseCSV(text);
+      populateSiteFilter();
+      renderScaffolds(scaffolds);
+    })
+    .catch(err => {
+      console.error(err);
+      appList.innerHTML = '<p>Failed to load data.</p>';
     });
-  }
+}
 
-  function fetchData() {
-    appList.innerHTML = '<div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>';
-    fetch(CSV_URL + '&cacheBust=' + Date.now())
-      .then(res => res.ok ? res.text() : Promise.reject('Failed to fetch'))
-      .then(text => {
-        scaffolds = parseCSV(text);
-        populateSiteFilter();
-        renderScaffolds(scaffolds);
-      })
-      .catch(err => {
-        appList.innerHTML = '<p>Failed to load data.</p>';
-        console.error(err);
-      });
-  }
+// Filters
+function applyFilters() {
+  const searchTerm = searchInput.value.toLowerCase();
+  const siteTerm = siteFilter.value;
+  const statusTerm = statusFilter.value;
 
-  function applyFilters() {
-    const term = searchInput.value.toLowerCase();
-    const siteVal = siteFilter.value;
-    const statusVal = statusFilter.value;
-    const fromDate = inspectionFrom.value ? new Date(inspectionFrom.value) : null;
-    const toDate = inspectionTo.value ? new Date(inspectionTo.value) : null;
+  const filtered = scaffolds.filter(s => {
+    const matchesSearch = s['Scaffold Tag/ID'].toLowerCase().includes(searchTerm);
+    const matchesSite = siteTerm ? s['Site / Plant'] === siteTerm : true;
+    const matchesStatus = statusTerm ? s['Tag Status'].toUpperCase() === statusTerm : true;
+    return matchesSearch && matchesSite && matchesStatus;
+  });
+  renderScaffolds(filtered);
+}
 
-    const filtered = scaffolds.filter(s => {
-      const matchesSearch = s['Scaffold Tag/ID']?.toLowerCase().includes(term);
-      const matchesSite = siteVal ? s['Site / Plant'] === siteVal : true;
-      const matchesStatus = statusVal ? s['Tag Status']?.toUpperCase() === statusVal : true;
-      const inspectionDate = s['Inspection Date'] ? new Date(s['Inspection Date']) : null;
-      const matchesFrom = fromDate && inspectionDate ? inspectionDate >= fromDate : true;
-      const matchesTo = toDate && inspectionDate ? inspectionDate <= toDate : true;
-      return matchesSearch && matchesSite && matchesStatus && matchesFrom && matchesTo;
-    });
-    renderScaffolds(filtered);
-  }
+searchInput.addEventListener('input', applyFilters);
+siteFilter.addEventListener('change', applyFilters);
+statusFilter.addEventListener('change', applyFilters);
 
-  searchInput.addEventListener('input', applyFilters);
-  siteFilter.addEventListener('change', applyFilters);
-  statusFilter.addEventListener('change', applyFilters);
-  inspectionFrom.addEventListener('change', applyFilters);
-  inspectionTo.addEventListener('change', applyFilters);
-
-  fetchData();
-  setInterval(fetchData, 60000);
+fetchData();
+setInterval(fetchData, 60000);
 </script>
 
 </body>
