@@ -207,9 +207,9 @@
 
   function getReminder(s) {
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setHours(0,0,0,0);
     let insp = new Date(s['Inspection Date']);
-    insp.setHours(0, 0, 0, 0);
+    insp.setHours(0,0,0,0);
     const status = (s['Tag Status']||'').toUpperCase();
 
     if(status==='GREEN') {
@@ -222,8 +222,8 @@
     }
 
     if(status==='ORANGE') {
-      const diff = Math.ceil((insp - today) / (1000 * 60 * 60 * 24));
-      if(diff===0) return '⚠️ Daily inspection required';
+      if(insp.getTime() === today.getTime()) return '⚠️ Daily inspection required';
+      if(insp.getTime() < today.getTime()) return '❌ Inspection expired!';
       return '';
     }
 
