@@ -23,7 +23,7 @@
     }
 
     .filter-container {
-      max-width: 800px;
+      max-width: 700px;
       margin: 0 auto 20px auto;
       display: flex;
       gap: 10px;
@@ -45,7 +45,7 @@
     }
 
     #app-list {
-      max-width: 800px;
+      max-width: 700px;
       margin: 0 auto;
       display: grid;
       grid-template-columns: 1fr;
@@ -110,18 +110,18 @@
     .ORANGE { background: #fbbf24; }
     .RED { background: #ef4444; }
 
+    .reminder { font-weight: bold; color: #b91c1c; }
+
     @keyframes fadeUpScale {0% { opacity: 0; transform: translateY(40px) scale(0.95); } 100% { opacity: 1; transform: translateY(0) scale(1); }}
 
+    @media (min-width: 768px) { #app-list { grid-template-columns: 1fr 1fr; gap: 24px; } }
+
     .footer {
-      margin-top: 40px;
       text-align: center;
+      margin-top: 40px;
       font-size: 0.95rem;
       color: #6b7280;
-      padding: 10px;
-      border-top: 1px solid #d1d5db;
     }
-
-    @media (min-width: 768px) { #app-list { grid-template-columns: 1fr 1fr; gap: 24px; } }
   </style>
 </head>
 <body>
@@ -166,9 +166,9 @@
     const lines = text.trim().split('\n');
     const headers = lines.shift().split(',').map(h => h.trim());
     return lines.map(line => {
-      const data = line.split(',').map(d => d.trim());
+      const data = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
       const obj = {};
-      headers.forEach((h, i) => obj[h] = data[i] || '');
+      headers.forEach((h, i) => obj[h] = data[i] ? data[i].replace(/"/g,'') : '');
       return obj;
     });
   }
@@ -190,11 +190,28 @@
       return;
     }
     appList.innerHTML = '';
+    const today = new Date();
+
     list.forEach((s, i) => {
       const card = document.createElement('div');
       card.className = 'card';
       card.style.animationDelay = `${i * 0.05}s`;
+
       const statusClass = s['Tag Status'] ? s['Tag Status'].toUpperCase() : 'GREEN';
+
+      let reminderText = '';
+      if (s['Inspection Date']) {
+        const inspectionDate = new Date(s['Inspection Date']);
+        const diffTime = inspectionDate - today;
+        const diffDays = Math.ceil(diffTime / (1000*60*60*24));
+        if (statusClass === 'GREEN' && diffDays <= 5) {
+          reminderText = `⚠️ Inspection due in ${diffDays} days`;
+        } else if (statusClass === 'ORANGE') {
+          reminderText = `🔔 Inspection required!`;
+        } else if (statusClass === 'RED' && diffDays < 0) {
+          reminderText = `❌ Inspection overdue!`;
+        }
+      }
 
       card.innerHTML = `
         <h3 class="task-title">Tag ID: ${s['Scaffold Tag/ID'] || '-'}</h3>
@@ -206,6 +223,7 @@
         <div class="info-row"><span>Inspection Date:</span> <span>${s['Inspection Date'] || '-'}</span></div>
         <div class="info-row"><span>Dismantle Date:</span> <span>${s['Dismantle Date'] || '-'}</span></div>
         <div class="info-row"><span>Status:</span> <span class="status ${statusClass}">${s['Tag Status'] || '-'}</span></div>
+        ${reminderText ? `<div class="info-row"><span>Reminder:</span> <span class="reminder">${reminderText}</span></div>` : ''}
         <div class="info-row"><span>Inspected By:</span> <span>${s['Inspected By'] || '-'}</span></div>
         <div class="info-row"><span>Notes:</span> <span>${s['Notes / Remarks'] || '-'}</span></div>
       `;
@@ -228,30 +246,30 @@
       });
   }
 
-  function filterData() {
+  function filterScaffolds() {
     const searchTerm = searchInput.value.toLowerCase();
-    const site = siteFilter.value;
-    const status = statusFilter.value;
-    const fromDate = inspectionFrom.value;
-    const toDate = inspectionTo.value;
+    const siteTerm = siteFilter.value;
+    const statusTerm = statusFilter.value;
+    const fromDate = inspectionFrom.value ? new Date(inspectionFrom.value) : null;
+    const toDate = inspectionTo.value ? new Date(inspectionTo.value) : null;
 
     const filtered = scaffolds.filter(s => {
-      let matches = true;
-      if (searchTerm) matches = s['Scaffold Tag/ID'].toLowerCase().includes(searchTerm);
-      if (matches && site) matches = s['Site / Plant'] === site;
-      if (matches && status) matches = s['Tag Status'].toUpperCase() === status;
-      if (matches && fromDate) matches = s['Inspection Date'] >= fromDate;
-      if (matches && toDate) matches = s['Inspection Date'] <= toDate;
-      return matches;
+      const matchesSearch = s['Scaffold Tag/ID']?.toLowerCase().includes(searchTerm) || false;
+      const matchesSite = siteTerm ? s['Site / Plant'] === siteTerm : true;
+      const matchesStatus = statusTerm ? s['Tag Status'] === statusTerm : true;
+      const inspectionDate = s['Inspection Date'] ? new Date(s['Inspection Date']) : null;
+      const matchesFrom = fromDate && inspectionDate ? inspectionDate >= fromDate : true;
+      const matchesTo = toDate && inspectionDate ? inspectionDate <= toDate : true;
+      return matchesSearch && matchesSite && matchesStatus && matchesFrom && matchesTo;
     });
     renderScaffolds(filtered);
   }
 
-  searchInput.addEventListener('input', filterData);
-  siteFilter.addEventListener('change', filterData);
-  statusFilter.addEventListener('change', filterData);
-  inspectionFrom.addEventListener('change', filterData);
-  inspectionTo.addEventListener('change', filterData);
+  searchInput.addEventListener('input', filterScaffolds);
+  siteFilter.addEventListener('change', filterScaffolds);
+  statusFilter.addEventListener('change', filterScaffolds);
+  inspectionFrom.addEventListener('change', filterScaffolds);
+  inspectionTo.addEventListener('change', filterScaffolds);
 
   fetchData();
   setInterval(fetchData, 60000);
