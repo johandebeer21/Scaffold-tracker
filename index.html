@@ -23,7 +23,7 @@
     }
 
     .filter-container {
-      max-width: 900px;
+      max-width: 800px;
       margin: 0 auto 20px auto;
       display: flex;
       gap: 10px;
@@ -45,7 +45,7 @@
     }
 
     #app-list {
-      max-width: 900px;
+      max-width: 800px;
       margin: 0 auto;
       display: grid;
       grid-template-columns: 1fr;
@@ -122,7 +122,6 @@
 <div class="filter-container">
   <input type="text" id="search" placeholder="Search by Tag ID..." />
   <select id="site-filter"><option value="">All Sites</option></select>
-  <select id="location-filter"><option value="">All Locations</option></select>
   <select id="status-filter">
     <option value="">All Status</option>
     <option value="GREEN">GREEN</option>
@@ -146,23 +145,24 @@ let scaffolds = [];
 const appList = document.getElementById('app-list');
 const searchInput = document.getElementById('search');
 const siteFilter = document.getElementById('site-filter');
-const locationFilter = document.getElementById('location-filter');
 const statusFilter = document.getElementById('status-filter');
 const inspectionFrom = document.getElementById('inspection-from');
 const inspectionTo = document.getElementById('inspection-to');
 
+// Proper CSV parser to handle quoted fields (like "2m x 2m x 5m")
 function parseCSV(text) {
   const lines = text.trim().split('\n');
   const headers = lines.shift().split(',').map(h => h.trim());
+  const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/; // split on commas outside quotes
   return lines.map(line => {
-    const data = line.split(',').map(d => d.trim());
+    const data = line.split(regex).map(d => d.replace(/^"|"$/g,'').trim());
     const obj = {};
     headers.forEach((h, i) => obj[h] = data[i] || '');
     return obj;
   });
 }
 
-function populateFilters() {
+function populateSiteFilter() {
   const sites = [...new Set(scaffolds.map(s => s['Site / Plant']).filter(Boolean))];
   siteFilter.innerHTML = '<option value="">All Sites</option>';
   sites.forEach(site => {
@@ -170,15 +170,6 @@ function populateFilters() {
     opt.value = site;
     opt.textContent = site;
     siteFilter.appendChild(opt);
-  });
-
-  const locations = [...new Set(scaffolds.map(s => s['Location']).filter(Boolean))];
-  locationFilter.innerHTML = '<option value="">All Locations</option>';
-  locations.forEach(loc => {
-    const opt = document.createElement('option');
-    opt.value = loc;
-    opt.textContent = loc;
-    locationFilter.appendChild(opt);
   });
 }
 
@@ -213,23 +204,28 @@ function renderScaffolds(list) {
 }
 
 function filterScaffolds() {
-  const term = searchInput.value.toLowerCase();
-  const site = siteFilter.value;
-  const location = locationFilter.value;
-  const status = statusFilter.value;
-  const from = inspectionFrom.value;
-  const to = inspectionTo.value;
+  let filtered = [...scaffolds];
+  const searchTerm = searchInput.value.toLowerCase();
+  const siteTerm = siteFilter.value;
+  const statusTerm = statusFilter.value;
+  const fromDate = inspectionFrom.value;
+  const toDate = inspectionTo.value;
 
-  const filtered = scaffolds.filter(s => {
-    const tagMatch = s['Scaffold Tag/ID']?.toLowerCase().includes(term);
-    const siteMatch = site ? s['Site / Plant'] === site : true;
-    const locationMatch = location ? s['Location'] === location : true;
-    const statusMatch = status ? s['Tag Status'].toUpperCase() === status : true;
-    const date = s['Inspection Date'] ? new Date(s['Inspection Date']) : null;
-    const fromMatch = from ? date >= new Date(from) : true;
-    const toMatch = to ? date <= new Date(to) : true;
-    return tagMatch && siteMatch && locationMatch && statusMatch && fromMatch && toMatch;
-  });
+  if (searchTerm) {
+    filtered = filtered.filter(s => s['Scaffold Tag/ID']?.toLowerCase().includes(searchTerm));
+  }
+  if (siteTerm) {
+    filtered = filtered.filter(s => s['Site / Plant'] === siteTerm);
+  }
+  if (statusTerm) {
+    filtered = filtered.filter(s => s['Tag Status']?.toUpperCase() === statusTerm);
+  }
+  if (fromDate) {
+    filtered = filtered.filter(s => s['Inspection Date'] && s['Inspection Date'] >= fromDate);
+  }
+  if (toDate) {
+    filtered = filtered.filter(s => s['Inspection Date'] && s['Inspection Date'] <= toDate);
+  }
 
   renderScaffolds(filtered);
 }
@@ -240,19 +236,18 @@ function fetchData() {
     .then(res => res.ok ? res.text() : Promise.reject('Failed to fetch CSV'))
     .then(text => {
       scaffolds = parseCSV(text);
-      populateFilters();
+      populateSiteFilter();
       filterScaffolds();
     })
     .catch(err => {
-      appList.innerHTML = '<p>Failed to load data.</p>';
       console.error(err);
+      appList.innerHTML = '<p>Failed to load data.</p>';
     });
 }
 
 // Event listeners
 searchInput.addEventListener('input', filterScaffolds);
 siteFilter.addEventListener('change', filterScaffolds);
-locationFilter.addEventListener('change', filterScaffolds);
 statusFilter.addEventListener('change', filterScaffolds);
 inspectionFrom.addEventListener('change', filterScaffolds);
 inspectionTo.addEventListener('change', filterScaffolds);
