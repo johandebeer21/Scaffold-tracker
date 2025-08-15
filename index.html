@@ -128,8 +128,8 @@
     <option value="ORANGE">ORANGE</option>
     <option value="RED">RED</option>
   </select>
-  <input type="date" id="inspection-from" placeholder="From Date" />
-  <input type="date" id="inspection-to" placeholder="To Date" />
+  <input type="date" id="inspection-from" />
+  <input type="date" id="inspection-to" />
 </div>
 
 <div id="app-list">
@@ -200,7 +200,33 @@
     });
   }
 
+  function applyFilters() {
+    const term = searchInput.value.toLowerCase();
+    const site = siteFilter.value;
+    const status = statusFilter.value;
+    const fromDate = inspectionFrom.value;
+    const toDate = inspectionTo.value;
+
+    const filtered = scaffolds.filter(s => {
+      let matchesSearch = s['Scaffold Tag/ID']?.toLowerCase().includes(term) || term === '';
+      let matchesSite = s['Site / Plant'] === site || site === '';
+      let matchesStatus = s['Tag Status'].toUpperCase() === status || status === '';
+
+      let matchesDate = true;
+      if (fromDate) matchesDate = new Date(s['Inspection Date']) >= new Date(fromDate);
+      if (toDate) matchesDate = matchesDate && new Date(s['Inspection Date']) <= new Date(toDate);
+
+      return matchesSearch && matchesSite && matchesStatus && matchesDate;
+    });
+
+    renderScaffolds(filtered);
+  }
+
+  searchInput.addEventListener('input', applyFilters);
+  siteFilter.addEventListener('change', applyFilters);
+  statusFilter.addEventListener('change', applyFilters);
+  inspectionFrom.addEventListener('change', applyFilters);
+  inspectionTo.addEventListener('change', applyFilters);
+
   function fetchData() {
-    appList.innerHTML = '<div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>';
-    fetch(CSV_URL + '&cacheBust=' + Date.now())
-     
+    appList.innerHTML = '<div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div
