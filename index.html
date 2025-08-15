@@ -23,7 +23,7 @@
     }
 
     .filter-container {
-      max-width: 900px;
+      max-width: 700px;
       margin: 0 auto 20px auto;
       display: flex;
       gap: 10px;
@@ -45,7 +45,7 @@
     }
 
     #app-list {
-      max-width: 900px;
+      max-width: 700px;
       margin: 0 auto;
       display: grid;
       grid-template-columns: 1fr;
@@ -56,7 +56,7 @@
       background: linear-gradient(90deg, #eee 25%, #ddd 50%, #eee 75%);
       background-size: 200% 100%;
       animation: shimmer 1.5s infinite;
-      height: 180px;
+      height: 140px;
       border-radius: 14px;
     }
 
@@ -106,49 +106,26 @@
       box-shadow: 0 0 10px rgba(0,0,0,0.15);
     }
 
-    .GREEN { 
-      background: linear-gradient(270deg, #10b981, #14d79d, #10b981);
-      background-size: 600% 600%;
-      animation: pulseGradient 3s ease infinite;
-      box-shadow: 0 0 12px #10b981cc;
-    }
-    .ORANGE { 
-      background: linear-gradient(270deg, #fbbf24, #fde68a, #fbbf24);
-      background-size: 600% 600%;
-      animation: pulseGradient 3s ease infinite;
-      box-shadow: 0 0 12px #fbbf24cc;
-    }
-    .RED { 
-      background: linear-gradient(270deg, #ef4444, #f87171, #ef4444);
-      background-size: 600% 600%;
-      animation: pulseGradient 3s ease infinite;
-      box-shadow: 0 0 12px #ef4444cc;
-    }
+    .GREEN { background: #10b981; }
+    .ORANGE { background: #fbbf24; }
+    .RED { background: #ef4444; }
 
     .reminder {
-      font-weight: 700;
-      color: #dc2626;
+      font-weight: 600;
+      margin-top: 8px;
+      color: #b91c1c;
     }
 
-    @keyframes pulseGradient {
-      0% {background-position: 0% 50%;}
-      50% {background-position: 100% 50%;}
-      100% {background-position: 0% 50%;}
-    }
-
-    @keyframes fadeUpScale {
-      0% { opacity: 0; transform: translateY(40px) scale(0.95); }
-      100% { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
-    @media (min-width: 768px) { #app-list { grid-template-columns: 1fr 1fr; gap: 24px; } }
+    @keyframes fadeUpScale {0% { opacity: 0; transform: translateY(40px) scale(0.95); } 100% { opacity: 1; transform: translateY(0) scale(1); }}
 
     .footer {
-      margin-top: 40px;
       text-align: center;
+      margin-top: 40px;
       font-size: 0.95rem;
       color: #6b7280;
     }
+
+    @media (min-width: 768px) { #app-list { grid-template-columns: 1fr 1fr; gap: 24px; } }
   </style>
 </head>
 <body>
@@ -164,6 +141,8 @@
     <option value="ORANGE">ORANGE</option>
     <option value="RED">RED</option>
   </select>
+  <input type="date" id="inspection-from" placeholder="From Date" />
+  <input type="date" id="inspection-to" placeholder="To Date" />
 </div>
 
 <div id="app-list">
@@ -184,14 +163,16 @@
   const searchInput = document.getElementById('search');
   const siteFilter = document.getElementById('site-filter');
   const statusFilter = document.getElementById('status-filter');
+  const inspectionFrom = document.getElementById('inspection-from');
+  const inspectionTo = document.getElementById('inspection-to');
 
   function parseCSV(text) {
     const lines = text.trim().split('\n');
     const headers = lines.shift().split(',').map(h => h.trim());
     return lines.map(line => {
-      const data = line.split(',').map(d => d.trim());
+      const data = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g); // support commas inside quotes
       const obj = {};
-      headers.forEach((h, i) => obj[h] = data[i] || '');
+      headers.forEach((h, i) => obj[h] = data[i]?.replace(/"/g,'') || '');
       return obj;
     });
   }
@@ -213,41 +194,48 @@
       return;
     }
     appList.innerHTML = '';
-    const today = new Date();
     list.forEach((s, i) => {
       const card = document.createElement('div');
       card.className = 'card';
       card.style.animationDelay = `${i * 0.05}s`;
 
-      const statusClass = s['Tag Status']?.trim().toUpperCase() || 'GREEN';
+      const statusClass = s['Tag Status'] ? s['Tag Status'].toUpperCase() : 'GREEN';
 
       // Reminder logic
       let reminderText = '';
       if (s['Inspection Date']) {
         const inspectionDate = new Date(s['Inspection Date']);
+        const today = new Date();
         const diffDays = Math.ceil((inspectionDate - today)/(1000*60*60*24));
 
-        if(statusClass === 'GREEN' && diffDays <=5 && diffDays >=0){
-          reminderText = `⚠️ Inspection due in ${diffDays} days`;
-        } 
-        else if(statusClass === 'ORANGE' && diffDays >= 0){
-          reminderText = `🔔 Inspection required!`;
+        if(statusClass === 'GREEN'){
+          if(diffDays <=5 && diffDays >=0){
+            reminderText = `⚠️ Inspection due in ${diffDays} days`;
+          } else if(diffDays < 0){
+            reminderText = `❌ Inspection expired!`;
+          }
+        } else if(statusClass === 'ORANGE'){
+          if(diffDays >= 0){
+            reminderText = `🔔 Daily inspection required!`;
+          } else {
+            reminderText = `❌ Inspection overdue!`;
+          }
         }
       }
 
       card.innerHTML = `
-        <h3 class="task-title">Tag ID: ${s['Scaffold Tag/ID']||'-'}</h3>
-        <div class="info-row"><span>Site:</span><span>${s['Site / Plant']||'-'}</span></div>
-        <div class="info-row"><span>Location:</span><span>${s['Location']||'-'}</span></div>
-        <div class="info-row"><span>Size:</span><span>${s['Size']||'-'}</span></div>
-        <div class="info-row"><span>Erection Date:</span><span>${s['Erection Date']||'-'}</span></div>
-        <div class="info-row"><span>Modification Date:</span><span>${s['Modification Date']||'-'}</span></div>
-        <div class="info-row"><span>Inspection Date:</span><span>${s['Inspection Date']||'-'}</span></div>
-        <div class="info-row"><span>Dismantle Date:</span><span>${s['Dismantle Date']||'-'}</span></div>
-        <div class="info-row"><span>Status:</span><span class="status ${statusClass}">${s['Tag Status']||'-'}</span></div>
-        ${reminderText ? `<div class="info-row"><span>Reminder:</span><span class="reminder">${reminderText}</span></div>` : ''}
-        <div class="info-row"><span>Inspected By:</span><span>${s['Inspected By']||'-'}</span></div>
-        <div class="info-row"><span>Notes:</span><span>${s['Notes / Remarks']||'-'}</span></div>
+        <h3 class="task-title">Tag ID: ${s['Scaffold Tag/ID'] || '-'}</h3>
+        <div class="info-row"><span>Site:</span> <span>${s['Site / Plant'] || '-'}</span></div>
+        <div class="info-row"><span>Location:</span> <span>${s['Location'] || '-'}</span></div>
+        <div class="info-row"><span>Size:</span> <span>${s['Size'] || '-'}</span></div>
+        <div class="info-row"><span>Erection Date:</span> <span>${s['Erection Date'] || '-'}</span></div>
+        <div class="info-row"><span>Modification Date:</span> <span>${s['Modification Date'] || '-'}</span></div>
+        <div class="info-row"><span>Inspection Date:</span> <span>${s['Inspection Date'] || '-'}</span></div>
+        <div class="info-row"><span>Dismantle Date:</span> <span>${s['Dismantle Date'] || '-'}</span></div>
+        <div class="info-row"><span>Status:</span> <span class="status ${statusClass}">${s['Tag Status'] || '-'}</span></div>
+        <div class="info-row"><span>Inspected By:</span> <span>${s['Inspected By'] || '-'}</span></div>
+        <div class="info-row"><span>Notes:</span> <span>${s['Notes / Remarks'] || '-'}</span></div>
+        ${reminderText ? `<div class="reminder">${reminderText}</div>` : ''}
       `;
       appList.appendChild(card);
     });
@@ -269,15 +257,20 @@
   }
 
   function applyFilters() {
-    const searchTerm = searchInput.value.toLowerCase();
-    const siteTerm = siteFilter.value;
-    const statusTerm = statusFilter.value;
+    const term = searchInput.value.toLowerCase();
+    const siteVal = siteFilter.value;
+    const statusVal = statusFilter.value;
+    const fromDate = inspectionFrom.value ? new Date(inspectionFrom.value) : null;
+    const toDate = inspectionTo.value ? new Date(inspectionTo.value) : null;
 
     const filtered = scaffolds.filter(s => {
-      const matchesSearch = s['Scaffold Tag/ID']?.toLowerCase().includes(searchTerm);
-      const matchesSite = siteTerm ? s['Site / Plant'] === siteTerm : true;
-      const matchesStatus = statusTerm ? s['Tag Status']?.trim().toUpperCase() === statusTerm : true;
-      return matchesSearch && matchesSite && matchesStatus;
+      const matchesSearch = s['Scaffold Tag/ID']?.toLowerCase().includes(term);
+      const matchesSite = siteVal ? s['Site / Plant'] === siteVal : true;
+      const matchesStatus = statusVal ? s['Tag Status']?.toUpperCase() === statusVal : true;
+      const inspectionDate = s['Inspection Date'] ? new Date(s['Inspection Date']) : null;
+      const matchesFrom = fromDate && inspectionDate ? inspectionDate >= fromDate : true;
+      const matchesTo = toDate && inspectionDate ? inspectionDate <= toDate : true;
+      return matchesSearch && matchesSite && matchesStatus && matchesFrom && matchesTo;
     });
     renderScaffolds(filtered);
   }
@@ -285,9 +278,11 @@
   searchInput.addEventListener('input', applyFilters);
   siteFilter.addEventListener('change', applyFilters);
   statusFilter.addEventListener('change', applyFilters);
+  inspectionFrom.addEventListener('change', applyFilters);
+  inspectionTo.addEventListener('change', applyFilters);
 
   fetchData();
-  setInterval(fetchData, 60000); // refresh every minute
+  setInterval(fetchData, 60000);
 </script>
 
 </body>
